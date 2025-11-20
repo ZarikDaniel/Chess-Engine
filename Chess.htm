@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USAmath FREE CHESS APP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for sound generation: Loaded externally, no local file needed -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Roboto+Mono:wght+400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            touch-action: manipulation;
+        }
+
+        .chess-piece {
+            cursor: grab;
+            user-select: none;
+            z-index: 10;
+        }
+
+        /* Chess Board Styling */
+        .square.selected { background-color: rgba(255, 255, 0, 0.5) !important; }
+        .square.last-move { background-color: rgba(155, 199, 0, 0.41) !important; }
+
+        .square.possible-move::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .square.capture-move::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 4px solid rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            top: 0;
+            left: 0;
+            box-sizing: border-box;
+        }
+
+        /* Evaluation Bar Styling */
+        .eval-bar-container {
+            width: 24px;
+            height: 100%;
+            background: #404040;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #555;
+        }
+        .eval-fill {
+            width: 100%;
+            background: white;
+            position: absolute;
+            bottom: 0;
+            transition: height 0.5s ease-in-out;
+        }
+        .eval-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
+            z-index: 10;
+            mix-blend-mode: difference;
+            color: #aaa; 
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        #board-overlay {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+        }
+
+        /* Message Box Styling */
+        #message-box {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #f97316;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            font-weight: bold;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        #message-box.show {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-2 sm:p-4">
+
+    <div class="w-full max-w-6xl flex flex-col lg:flex-row gap-6 justify-center items-start">
+        
+        <!-- Left Column: Board & Eval -->
+        <div class="flex gap-2 w-full lg:w-auto justify-center">
+            
+            <!-- Evaluation Bar -->
+            <div class="h-[480px] hidden sm:flex flex-col items-center justify-center py-1">
+                <div class="eval-bar-container shadow-lg">
+                    <div id="eval-fill" class="eval-fill" style="height: 50%;"></div>
+                    <div id="eval-score" class="eval-text">0.0</div>
+                </div>
+            </div>
+
+            <!-- Main Board Area -->
+            <div class="flex flex-col gap-2 w-full max-w-[480px]">
+                
+                <!-- Header (Updated with Logo and Local Link) -->
+                <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center shadow-lg">
+                    <div>
+                        <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                            <!-- START: Logo Source updated to use uploaded file apple-touch-icon.png -->
+                            <img id="app-logo" src="./apple-touch-icon.png" 
+                                 alt="USAmath Free Chess App Logo" 
+                                 class="h-8 w-8 rounded-full border-2 border-amber-500 shadow-md"
+                                 onerror="this.src='https://placehold.co/40x40/1e293b/f59e0b?text=C'; this.onerror=null;">
+                            <!-- END: Logo Source updated -->
+                            <span class="text-amber-400">USAmath FREE CHESS APP</span>
+                            <span id="opening-name" class="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded font-normal border border-slate-600 hidden sm:inline-block">
+                                Starting Position
+                            </span>
+                        </h1>
+                    </div>
+                    
+                    <!-- Right side of Header: Local Link and Status Badge -->
+                    <div class="flex items-center gap-3">
+                        <!-- USER's LOCAL LINK to chess.htm (NOW ONLY THE IMAGE IS THE BUTTON) -->
+                        <a href="./chess.htm" target="_self" 
+                           class="p-1 rounded-full bg-slate-700/50 border border-slate-600 shadow-inner hover:bg-slate-700 transition">
+                            <img src="./Cash App Logo.png" class="h-6 w-6 rounded-full" 
+                                 alt="Main Page Link" 
+                                 onerror="this.style.display='none';"
+                                 title="Go to Main Page">
+                        </a>
+                        <!-- End Local Link -->
+                        
+                        <div id="status-badge" class="text-sm font-bold px-3 py-1 bg-slate-700 rounded text-white">
+                            White's Turn
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Board Wrapper -->
+                <div class="relative w-full aspect-square bg-slate-700 rounded-lg shadow-2xl border-4 border-slate-700 overflow-hidden select-none">
+                    <div id="board" class="grid grid-cols-8 grid-rows-8 w-full h-full z-10 relative"></div>
+                    <svg id="board-overlay" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+                    
+                    <!-- Game Over Overlay -->
+                    <div id="game-over-modal" class="hidden absolute inset-0 bg-black/70 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+                        <h2 id="game-result" class="text-3xl font-bold text-white mb-2">Game Over</h2>
+                        <button onclick="resetGame()" class="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-full font-bold shadow-lg transition transform hover:scale-105">Play Again</button>
+                    </div>
+                </div>
+
+                <!-- Control Bar -->
+                <div class="grid grid-cols-5 gap-2">
+                    <button onclick="startEngine()" class="bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded text-sm font-bold border border-emerald-600 transition shadow-md">
+                        ▶ Start
+                    </button>
+                    <button onclick="stopEngine()" class="bg-red-700 hover:bg-red-600 text-white py-2 rounded text-sm font-bold border border-red-600 transition shadow-md">
+                        ⬛ Stop
+                    </button>
+                    <button onclick="flipBoard()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded text-sm font-medium border border-slate-600 transition shadow-sm">
+                        Flip
+                    </button>
+                    <button onclick="undoMove()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded text-sm font-medium border border-slate-600 transition shadow-sm">
+                        Undo
+                    </button>
+                    <button onclick="resetGame()" class="bg-slate-700 hover:bg-slate-600 text-white py-2 rounded text-sm font-medium border border-slate-600 transition shadow-sm">
+                        New
+                    </button>
+                </div>
+
+                <!-- Live Engine Stats -->
+                <div class="bg-slate-800 p-2 rounded border border-slate-700 text-xs font-mono text-slate-400 flex justify-between items-center shadow-inner">
+                    <span id="engine-status-text">Engine: Loading...</span>
+                    <span id="depth-text">Depth: 0</span>
+                    <span id="best-move-text">Best: -</span>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right Column: Settings & Data -->
+        <div class="w-full lg:w-80 flex flex-col gap-4">
+            
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+                <h2 class="text-sm uppercase tracking-wider font-bold text-slate-400 mb-3">Game Settings</h2>
+                
+                <!-- Player Selection -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="text-xs text-slate-500 block mb-1 font-bold">White</label>
+                        <select id="white-player" onchange="updateSettings()" class="w-full bg-slate-900 text-white text-sm p-2 rounded border border-slate-600 outline-none focus:border-amber-500 transition">
+                            <option value="human">Human</option>
+                            <option value="stockfish">Engine</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500 block mb-1 font-bold">Black</label>
+                        <select id="black-player" onchange="updateSettings()" class="w-full bg-slate-900 text-white text-sm p-2 rounded border border-slate-600 outline-none focus:border-amber-500 transition">
+                            <option value="stockfish">Engine</option>
+                            <option value="human">Human</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Accurate Strength Slider -->
+                <div class="mb-2">
+                    <div class="flex justify-between items-end mb-1">
+                        <label class="text-xs text-slate-500 font-bold">Engine ELO</label>
+                        <span id="elo-display" class="text-xs font-mono text-amber-400 font-bold">1500</span>
+                    </div>
+                    <input type="range" id="elo-slider" min="0" max="20" value="10" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-amber-500" oninput="updateEloDisplay()">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>800</span>
+                        <span>1500</span>
+                        <span>2200</span>
+                        <span>3200</span>
+                    </div>
+                </div>
+                
+                <!-- Analysis Mode Toggle -->
+                <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-700">
+                    <span class="text-sm text-slate-300 font-medium">Analysis Arrows</span>
+                    <button onclick="toggleAnalysis()" id="analysis-btn" class="text-xs bg-emerald-900 text-emerald-400 border border-emerald-700 px-3 py-1 rounded uppercase font-bold hover:bg-emerald-800 transition">
+                        ON
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-lg min-h-[60px] flex flex-col justify-center">
+                <div id="captured-white" class="flex flex-wrap gap-1 text-lg leading-none mb-1"></div>
+                <div id="captured-black" class="flex flex-wrap gap-1 text-lg leading-none text-slate-400"></div>
+            </div>
+
+            <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-lg flex-grow overflow-hidden flex flex-col h-[300px] lg:h-auto">
+                <div class="bg-slate-900/50 p-3 border-b border-slate-700 flex justify-between items-center">
+                    <h2 class="text-sm font-bold text-slate-300">Move History</h2>
+                    <button onclick="copyPGN()" class="text-xs text-amber-400 hover:text-amber-300 font-bold uppercase tracking-wide transition">Copy PGN</button>
+                </div>
+                <div id="move-history" class="flex-grow overflow-y-auto p-2 font-mono text-sm scroll-smooth">
+                    <div class="text-slate-500 italic text-center mt-4">Game Start</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Message Box for Illegal Moves -->
+    <div id="message-box" class="fixed">Illegal Move: Not a legal target square.</div>
+
+    <script>
+        // --- Configuration & State ---
+        const PIECES = { w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' }, b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' } };
+        const SAN_PIECES = { k: 'K', q: 'Q', r: 'R', b: 'B', n: 'N', p: '' };
+        const ELO_MAP = [
+            800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 
+            1800, 1900, 2000, 2100, 2200, 2300, 2500, 2700, 2900, 3100, 3200
+        ];
+        const OPENINGS = {
+            "e2e4": "King's Pawn", "e2e4 e7e5": "Open Game", "e2e4 c7c5": "Sicilian",
+            "e2e4 e7e6": "French", "e2e4 c7c6": "Caro-Kann", "d2d4": "Queen's Pawn",
+            "d2d4 d7d5": "Queen's Gambit", "g1f3": "Reti", "c2c4": "English"
+        };
+
+        let board = [], turn = 'w', selectedSquare = null, lastMove = null;
+        let castlingRights = { w: { k: true, q: true }, b: { k: true, q: true } };
+        let enPassantTarget = null, halfMoveClock = 0, fullMoveNumber = 1;
+        let capturedPieces = { w: [], b: [] }, moveList = []; 
+        let coordMoveList = [];
+        let historyStack = [];
+        let positionHistory = {}; // FENs for repetition checking
+        let stockfish = null, isEngineReady = false, isAnalysisMode = true;
+        let isGameOver = false, isEnginePaused = true;
+        let engineTimeout = null;
+        let isFlipped = false;
+
+        // --- Tone.js Sound FX Setup ---
+        let fx = null;
+
+        function initSound() {
+            if (fx) return; // Already initialized
+            try {
+                // Initialize Tone.js instruments
+                fx = {
+                    move: new Tone.PluckSynth({ decay: 0.1, sustain: 0.05, release: 0.1 }).toDestination(),
+                    capture: new Tone.MembraneSynth({ pitchDecay: 0.05, octave: 1, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.1 } }).toDestination(),
+                    check: new Tone.DuoSynth({ voice0: { oscillator: { type: 'sawtooth' } }, voice1: { oscillator: { type: 'sine' } }, vibratoAmount: 0.5 }).toDestination(),
+                    mate: new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" } }).toDestination(),
+                    draw: new Tone.PolySynth(Tone.Synth, { oscillator: { type: "square" } }).toDestination(),
+                    action: new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, release: 0.1 } }).toDestination(),
+                };
+                // Thinking loop initialized after fx is set
+                fx.thinking = new Tone.Loop(time => fx.action.triggerAttackRelease('C4', '16n', time), '4n').start(0);
+                fx.thinking.volume.value = -20;
+                fx.thinking.mute = true; 
+            } catch (e) {
+                console.error("Tone.js initialization failed:", e);
+                fx = false; // Flag to stop trying to use sounds
+            }
+        }
+        
+        // This function ensures Tone.js context is running before playing sound
+        async function playSound(type) {
+            if (!fx) return; // Skip if initialization failed
+            try {
+                // Ensure audio context is running (required for browser security)
+                await Tone.start(); 
+            } catch (e) {
+                // If it fails, maybe the context is blocked, just continue silently.
+            }
+
+            switch (type) {
+                case 'move': fx.move.triggerAttackRelease('C4', '8n'); break;
+                case 'capture': fx.capture.triggerAttackRelease('C2', '8n'); break;
+                case 'check': fx.check.triggerAttackRelease('C5', '0.2'); break;
+                case 'mate': fx.mate.triggerAttackRelease(['C5', 'E5', 'G5'], '0.5'); break;
+                case 'draw': fx.draw.triggerAttackRelease(['A4', 'C5', 'E5'], '0.5'); break;
+                case 'start': fx.action.triggerAttackRelease('G5', '0.1'); fx.action.triggerAttackRelease('C6', '0.1', '+0.1'); break;
+                case 'stop': fx.action.triggerAttackRelease('C6', '0.1'); fx.action.triggerAttackRelease('G5', '0.1', '+0.1'); break;
+                case 'undo': fx.action.triggerAttackRelease('F4', '0.1'); break;
+                case 'flip': fx.action.triggerAttackRelease('C5', '0.05'); break;
+            }
+        }
+        
+        async function toggleThinkingSound(isThinking) {
+            if (!fx) return;
+            fx.thinking.mute = !isThinking;
+            if (isThinking) {
+                 await Tone.start(); 
+                 fx.thinking.start(0);
+            }
+        }
+
+        // --- Initialization ---
+        async function initEngine() {
+            document.getElementById('engine-status-text').innerText = "Engine: Loading...";
+            if (stockfish) stockfish.terminate();
+            try {
+                // Stockfish is loaded via a Worker using a CDN URL
+                const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+                if(!res.ok) throw new Error("Stockfish script load failed.");
+                const blob = new Blob([await res.text()], { type: 'application/javascript' });
+                stockfish = new Worker(URL.createObjectURL(blob));
+                
+                stockfish.postMessage('uci');
+                
+                stockfish.onmessage = (e) => {
+                    const line = e.data;
+                    if (line === 'uciok') {
+                        isEngineReady = true;
+                        document.getElementById('engine-status-text').innerText = "Engine: Ready (Stopped)";
+                        updateEloDisplay(); 
+                    }
+                    if (line.startsWith('info') && line.includes('score')) parseEngineInfo(line);
+                    if (line.startsWith('bestmove')) {
+                        toggleThinkingSound(false);
+                        const bestMove = line.split(' ')[1];
+                        if (isComputerTurn() && !isGameOver && !isEnginePaused && bestMove && bestMove !== '(none)') {
+                             document.getElementById('engine-status-text').innerText = "Engine: Move " + bestMove;
+                             applyEngineMove(bestMove);
+                        } else if (isEnginePaused) {
+                            document.getElementById('engine-status-text').innerText = "Engine: Stopped";
+                        }
+                    }
+                };
+            } catch(e) {
+                console.error("Stockfish Engine failed to initialize:", e);
+                document.getElementById('engine-status-text').innerText = "Engine: Failed to load";
+            }
+        }
+
+        function updateEloDisplay() {
+            const val = parseInt(document.getElementById('elo-slider').value);
+            const elo = ELO_MAP[val];
+            document.getElementById('elo-display').innerText = elo;
+            if(stockfish && isEngineReady) {
+                stockfish.postMessage(`setoption name Skill Level value ${val}`);
+            }
+        }
+
+        function parseEngineInfo(line) {
+            const depth = line.match(/depth (\d+)/);
+            if (depth) document.getElementById('depth-text').innerText = `D: ${depth[1]}`;
+            let score = 0;
+            const cp = line.match(/score cp (-?\d+)/), mate = line.match(/score mate (-?\d+)/);
+            if (mate) {
+                score = parseInt(mate[1]) > 0 ? 10000 : -10000;
+                document.getElementById('eval-score').innerText = `M${Math.abs(parseInt(mate[1]))}`;
+            } else if (cp) {
+                score = parseInt(cp[1]);
+                if (turn === 'b') score = -score;
+                document.getElementById('eval-score').innerText = (score / 100).toFixed(1);
+            }
+            updateEvalBar(score);
+            
+            const pv = line.indexOf(' pv ');
+            if (pv !== -1) {
+                const best = line.substring(pv + 4).split(' ')[0];
+                document.getElementById('best-move-text').innerText = `Best: ${best}`;
+                if (isAnalysisMode) drawArrow(best);
+            }
+        }
+
+        function updateEvalBar(score) {
+            let pct = 50 + (score / 15); 
+            if (pct > 98) pct = 98; if (pct < 2) pct = 2;
+            document.getElementById('eval-fill').style.height = `${pct}%`;
+            document.getElementById('eval-fill').style.backgroundColor = score > 50 ? '#fff' : (score < -50 ? '#333' : '#999');
+        }
+
+        function initGame() {
+            board = Array(8).fill(null).map(() => Array(8).fill(null));
+            const back = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
+            for(let c=0; c<8; c++) {
+                board[1][c] = { type: 'p', color: 'b' }; board[6][c] = { type: 'p', color: 'w' };
+                board[0][c] = { type: back[c], color: 'b' }; board[7][c] = { type: back[c], color: 'w' };
+            }
+            turn = 'w'; castlingRights = { w: { k: true, q: true }, b: { k: true, q: true } };
+            enPassantTarget = null; fullMoveNumber = 1; 
+            moveList = []; coordMoveList = []; historyStack = []; positionHistory = {};
+            capturedPieces = { w: [], b: [] }; lastMove = null; isGameOver = false;
+            
+            document.getElementById('game-over-modal').classList.add('hidden');
+            isEnginePaused = true;
+            if(isEngineReady) document.getElementById('engine-status-text').innerText = "Engine: Ready (Stopped)";
+            
+            renderBoard(); updateUI();
+            playSound('start');
+        }
+
+        // --- Core Chess Logic (Simplified, kept for completeness) ---
+        function getPiece(r, c) { return (r>=0 && r<8 && c>=0 && c<8) ? board[r][c] : null; }
+        
+        function getPseudoMoves(r, c, p) {
+            let moves = [];
+            const fwd = p.color==='w' ? -1 : 1;
+            if (p.type === 'p') {
+                if (!getPiece(r+fwd, c)) {
+                    moves.push({r:r+fwd, c:c});
+                    if ((p.color==='w'&&r===6)||(p.color==='b'&&r===1)) 
+                        if (!getPiece(r+fwd*2, c)) moves.push({r:r+fwd*2, c:c, dbl:true});
+                }
+                [[r+fwd, c-1], [r+fwd, c+1]].forEach(([tr, tc]) => {
+                    const t = getPiece(tr, tc);
+                    if ((t && t.color !== p.color) || (enPassantTarget && tr===enPassantTarget.r && tc===enPassantTarget.c))
+                        moves.push({r:tr, c:tc, ep: !t});
+                });
+            } else if (['n','k'].includes(p.type)) {
+                const steps = p.type==='n' ? [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]] : [[-1,-1],[-1,0],[-1,1],[0,-1],
+                [0,1],[1,-1],[1,0],[1,1]];
+                steps.forEach(([dr, dc]) => {
+                    const tr=r+dr, tc=c+dc;
+                    if(tr>=0&&tr<8&&tc>=0&&tc<8) { const t=getPiece(tr,tc); if(!t||t.color!==p.color) moves.push({r:tr, c:tc}); }
+                });
+                if(p.type==='k') {
+                    if(castlingRights[p.color].k && !getPiece(r, c+1) && !getPiece(r, c+2)) {
+                        const rook = getPiece(r, 7);
+                        if(rook && rook.type === 'r' && rook.color === p.color) moves.push({r:r, c:c+2, castle:'k'});
+                    }
+                    if(castlingRights[p.color].q && !getPiece(r, c-1) && !getPiece(r, c-2) && !getPiece(r, c-3)) {
+                        const rook = getPiece(r, 0);
+                        if(rook && rook.type === 'r' && rook.color === p.color) moves.push({r:r, c:c-2, castle:'q'});
+                    }
+                }
+            } else {
+                const dirs = p.type==='b' ? [[-1,-1],[-1,1],[1,-1],[1,1]] : p.type==='r' ? [[-1,0],[1,0],[0,-1],[0,1]] : [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
+                dirs.forEach(([dr, dc]) => {
+                    let tr=r+dr, tc=c+dc;
+                    while(tr>=0 && tr<8 && tc>=0 && tc<8) {
+                        const t = getPiece(tr, tc);
+                        if (!t) moves.push({r:tr, c:tc});
+                        else { if (t.color !== p.color) moves.push({r:tr, c:tc}); break; }
+                        tr+=dr; tc+=dc;
+                    }
+                });
+            }
+            return moves;
+        }
+
+        function getLegalMoves(r, c) {
+            const p = getPiece(r, c);
+            if (!p) return [];
+            return getPseudoMoves(r, c, p).filter(m => {
+                const backup = { orig: board[r][c], dest: board[m.r][m.c], ep: m.ep ? board[r][m.c] : null };
+                
+                // Perform the move on a copy
+                board[m.r][m.c] = board[r][c]; board[r][c] = null; if(m.ep) board[r][m.c] = null;
+                
+                let safe = !isInCheck(p.color);
+                
+                if (m.castle) {
+                    // Check squares king moves through for checks during castling
+                    const startC = c;
+                    const endC = m.c;
+                    const step = (endC > startC) ? 1 : -1;
+                    const pathIsSafe = !isInCheck(p.color) && 
+                                       !isSquareAttacked(p.color, r, startC + step);
+                                       
+                    safe = safe && pathIsSafe;
+                    // Restore board for castling check
+                    board[m.r][m.c] = backup.dest; board[r][c] = backup.orig; if(m.ep) board[r][m.c] = backup.ep;
+                    return safe;
+                }
+
+                // Restore board
+                board[m.r][m.c] = backup.dest; board[r][c] = backup.orig; if(m.ep) board[r][m.c] = backup.ep;
+                return safe;
+            });
+        }
+        
+        function isSquareAttacked(color, r, c) {
+            const opp = color==='w'?'b':'w';
+            for(let i=0; i<8; i++) for(let j=0; j<8; j++) {
+                if(board[i][j]?.color===opp) {
+                    if(getPseudoMoves(i, j, board[i][j]).some(m => m.r===r && m.c===c)) return true;
+                }
+            }
+            return false;
+        }
+
+        function isInCheck(color) {
+            let kPos;
+            for(let i=0; i<8; i++) for(let j=0; j<8; j++) if(board[i][j]?.type==='k' && board[i][j].color===color) kPos={r:i, c:j};
+            if(!kPos) return false;
+            return isSquareAttacked(color, kPos.r, kPos.c);
+        }
+        
+        function getSAN(from, move, p, isCapture, isCastle) {
+            if (isCastle === 'k') return 'O-O';
+            if (isCastle === 'q') return 'O-O-O';
+
+            let san = SAN_PIECES[p.type];
+            let ambiguous = false;
+
+            if (p.type !== 'p') {
+                for (let r=0; r<8; r++) for (let c=0; c<8; c++) {
+                    const otherP = board[r][c];
+                    if (otherP?.type === p.type && otherP.color === p.color && (r !== from.r || c !== from.c)) {
+                        const otherMoves = getLegalMoves(r, c);
+                        if (otherMoves.some(m => m.r === move.r && m.c === move.c)) {
+                            ambiguous = true;
+                            if (getFile(from) !== getFile({c})) san += getFile(from);
+                            else if (getRank(from) !== getRank({r})) san += getRank(from);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (isCapture || (p.type === 'p' && (move.ep || isCapture))) {
+                if (p.type === 'p' && !ambiguous) san += getFile(from);
+                san += 'x';
+            }
+
+            san += getCoord(move);
+            return san;
+        }
+
+
+        function makeMove(from, move, isEngineMove=false) {
+            saveState();
+            const p = board[from.r][from.c];
+            const destP = board[move.r][move.c];
+            const isCapture = destP || move.ep;
+            const isPromo = p.type === 'p' && (move.r === 0 || move.r === 7);
+            
+            let san = getSAN(from, move, p, isCapture, move.castle);
+            coordMoveList.push(getCoord(from) + getCoord(move) + (isPromo ? 'q' : ''));
+
+            // Sound
+            if (isCapture || move.ep) playSound('capture'); else playSound('move');
+
+            if(destP) {
+                capturedPieces[destP.color].push(PIECES[destP.color][destP.type]);
+                if(destP.type === 'r') {
+                    if(move.c === 0) castlingRights[destP.color].q = false;
+                    if(move.c === 7) castlingRights[destP.color].k = false;
+                }
+            }
+            if(move.ep) {
+                const epP = board[from.r][move.c];
+                capturedPieces[epP.color].push(PIECES[epP.color][epP.type]);
+                board[from.r][move.c] = null;
+            }
+            
+            board[move.r][move.c] = p; board[from.r][from.c] = null;
+            
+            if(move.castle === 'k') { board[from.r][5] = board[from.r][7]; board[from.r][7]=null; }
+            if(move.castle === 'q') { board[from.r][3] = board[from.r][0]; board[from.r][0]=null; }
+            if(isPromo) p.type='q';
+            
+            enPassantTarget = move.dbl ? {r:(from.r+move.r)/2, c:from.c} : null;
+            
+            // Half-move clock reset logic
+            if (p.type === 'p' || isCapture) halfMoveClock = 0; else halfMoveClock++;
+
+            if(turn==='b') fullMoveNumber++;
+            turn = turn==='w'?'b':'w';
+            lastMove = {from, to:move};
+            
+            if(p.type==='k') castlingRights[p.color] = {k:false, q:false};
+            if(p.type==='r') { if(from.c===0) castlingRights[p.color].q=false; if(from.c===7) castlingRights[p.color].k=false; }
+
+            const inCheckNow = isInCheck(turn);
+            if (inCheckNow) {
+                if (!hasLegalMoves(turn)) { san += "#"; playSound('mate'); }
+                else { san += "+"; playSound('check'); }
+            }
+            if (isPromo) san += "=Q";
+            moveList.push(san);
+
+            // Update repetition history
+            updateRepetitionHistory();
+
+            renderBoard(); updateUI(); checkGameOver(inCheckNow);
+            
+            // If engine is running, trigger it immediately for next move
+            if(!isGameOver && !isEnginePaused) triggerEngine();
+        }
+
+        function hasLegalMoves(color) {
+            for(let i=0; i<8; i++) for(let j=0; j<8; j++) {
+                if(board[i][j]?.color === color && getLegalMoves(i, j).length > 0) return true;
+            }
+            return false;
+        }
+
+        function checkGameOver(inCheckNow) {
+            if (hasThreefoldRepetition()) {
+                isGameOver = true;
+                showResultModal("Draw by Threefold Repetition", 'text-slate-300');
+                playSound('draw');
+                return;
+            }
+            if (halfMoveClock >= 100) { // 50-move rule (100 half-moves)
+                 isGameOver = true;
+                 showResultModal("Draw by 50-move rule", 'text-slate-300');
+                 playSound('draw');
+                 return;
+            }
+            
+            if (!hasLegalMoves(turn)) {
+                isGameOver = true;
+                if (inCheckNow) {
+                    showResultModal(`Checkmate! ${turn==='w'?'Black':'White'} wins!`, 'text-green-400');
+                } else {
+                    showResultModal("Stalemate / Draw", 'text-slate-300');
+                    playSound('draw');
+                }
+            }
+        }
+        
+        function showResultModal(text, colorClass) {
+            const modal = document.getElementById('game-over-modal');
+            const msg = document.getElementById('game-result');
+            modal.classList.remove('hidden');
+            msg.innerText = text;
+            msg.className = `text-3xl font-bold ${colorClass} mb-2`;
+        }
+
+        // --- Repetition Logic ---
+        function getRepetitionFEN() {
+            let fen = "";
+            for(let r=0; r<8; r++) {
+                let e = 0;
+                for(let c=0; c<8; c++) {
+                    const p = board[r][c];
+                    if(!p) e++; else { if(e){fen+=e;e=0;} fen+=p.color==='w'?p.type.toUpperCase():p.type.toLowerCase(); }
+                }
+                if(e) fen+=e; if(r<7) fen+="/";
+            }
+            fen += ` ${turn} `;
+            let cast = "";
+            if(castlingRights.w.k) cast+="K"; if(castlingRights.w.q) cast+="Q";
+            if(castlingRights.b.k) cast+="k"; if(castlingRights.b.q) cast+="q";
+            fen += (cast||"-") + " ";
+            fen += (enPassantTarget ? getCoord(enPassantTarget) : "-");
+            return fen;
+        }
+
+        function updateRepetitionHistory() {
+            const pos = getRepetitionFEN();
+            positionHistory[pos] = (positionHistory[pos] || 0) + 1;
+        }
+
+        function hasThreefoldRepetition() {
+            const pos = getRepetitionFEN();
+            return positionHistory[pos] >= 3;
+        }
+
+        // --- Engine ---
+        function startEngine() {
+            if(!isEngineReady) return showMessage("Engine is still loading. Please wait a moment.");
+            if(isGameOver) return showMessage("Game is already over. Click 'New' to start again.");
+            if(isEnginePaused === false) return showMessage("Engine is already running.");
+            
+            isEnginePaused = false;
+            document.getElementById('engine-status-text').innerText = "Engine: Starting...";
+            playSound('start');
+            triggerEngine();
+        }
+
+        function stopEngine() {
+            if(isEnginePaused === true) return showMessage("Engine is already stopped.");
+            isEnginePaused = true;
+            document.getElementById('engine-status-text').innerText = "Engine: Stopped";
+            if(stockfish) stockfish.postMessage('stop');
+            if(engineTimeout) clearTimeout(engineTimeout);
+            toggleThinkingSound(false);
+            playSound('stop');
+        }
+
+        function triggerEngine() {
+            if(!stockfish || !isEngineReady || isGameOver || isEnginePaused) return;
+
+            const fen = generateFEN();
+            if(engineTimeout) clearTimeout(engineTimeout);
+
+            if (isComputerTurn()) {
+                document.getElementById('engine-status-text').innerText = "Engine: Thinking...";
+                document.getElementById('board-overlay').innerHTML = ''; 
+                toggleThinkingSound(true);
+
+                stockfish.postMessage(`position fen ${fen}`);
+                stockfish.postMessage(`go depth 25`); 
+                
+                engineTimeout = setTimeout(() => {
+                    if(document.getElementById('engine-status-text').innerText.includes("Thinking")) {
+                        stockfish.postMessage('stop'); 
+                    }
+                }, 15000);
+
+            } else if (isAnalysisMode) {
+                document.getElementById('engine-status-text').innerText = "Engine: Analyzing...";
+                toggleThinkingSound(true);
+                stockfish.postMessage(`position fen ${fen}`);
+                stockfish.postMessage(`go depth 12`);
+            }
+            checkOpening();
+        }
+
+        function applyEngineMove(bestMoveStr) {
+            const fC=bestMoveStr.charCodeAt(0)-97, fR=8-parseInt(bestMoveStr[1]);
+            const tC=bestMoveStr.charCodeAt(2)-97, tR=8-parseInt(bestMoveStr[3]);
+            const moves = getLegalMoves(fR, fC);
+            const move = moves.find(m => m.r === tR && m.c === tC);
+            if(move) setTimeout(() => makeMove({r:fR, c:fC}, move, true), 250);
+        }
+
+        function isComputerTurn() { return (turn === 'w' && document.getElementById('white-player').value === 'stockfish') || (turn === 'b' && document.getElementById('black-player').value === 'stockfish'); }
+
+        function saveState() {
+            historyStack.push({
+                board: JSON.parse(JSON.stringify(board)),
+                turn, castlingRights: JSON.parse(JSON.stringify(castlingRights)),
+                enPassantTarget, lastMove, moveList: [...moveList], coordMoveList: [...coordMoveList],
+                capturedPieces: JSON.parse(JSON.stringify(capturedPieces)),
+                positionHistory: JSON.parse(JSON.stringify(positionHistory))
+            });
+        }
+        
+        function undoMove() {
+            if(historyStack.length===0) return;
+            
+            stopEngine();
+            playSound('undo');
+
+            const state = historyStack.pop();
+            board = state.board; turn = state.turn; lastMove = state.lastMove;
+            moveList = state.moveList; coordMoveList = state.coordMoveList;
+            castlingRights = state.castlingRights; enPassantTarget = state.enPassantTarget;
+            capturedPieces = state.capturedPieces;
+            positionHistory = state.positionHistory;
+            
+            renderBoard(); updateUI();
+            document.getElementById('board-overlay').innerHTML = '';
+        }
+
+        // --- UI & Utils ---
+        function generateFEN() {
+            let fen = "";
+            for(let r=0; r<8; r++) {
+                let e = 0;
+                for(let c=0; c<8; c++) {
+                    const p = board[r][c];
+                    if(!p) e++; else { if(e){fen+=e;e=0;} fen+=p.color==='w'?p.type.toUpperCase():p.type.toLowerCase(); }
+                }
+                if(e) fen+=e; if(r<7) fen+="/";
+            }
+            fen += ` ${turn} `;
+            let cast = "";
+            if(castlingRights.w.k) cast+="K"; if(castlingRights.w.q) cast+="Q";
+            if(castlingRights.b.k) cast+="k"; if(castlingRights.b.q) cast+="q";
+            fen += (cast||"-") + " ";
+            fen += (enPassantTarget ? getCoord(enPassantTarget) : "-") + " ";
+            fen += `${halfMoveClock} ${fullMoveNumber}`;
+            return fen;
+        }
+
+        function showMessage(text) {
+            const box = document.getElementById('message-box');
+            box.innerText = text;
+            box.classList.add('show');
+            setTimeout(() => {
+                box.classList.remove('show');
+            }, 3000);
+        }
+
+        function handleClick(r, c) {
+            // Initialize sound context on first interaction
+            initSound();
+
+            if(isGameOver) return showMessage("The game is over. Click 'New' to start again.");
+            
+            if(isComputerTurn() && !isEnginePaused && stockfish) {
+                stopEngine();
+                showMessage("Engine search stopped due to manual intervention.");
+            }
+
+            const currentPiece = board[r][c];
+
+            if(selectedSquare) {
+                const moves = getLegalMoves(selectedSquare.r, selectedSquare.c);
+                const m = moves.find(mv => mv.r===r && mv.c===c);
+
+                if(m) { 
+                    makeMove(selectedSquare, m); 
+                    selectedSquare=null; 
+                    return; 
+                } else if (currentPiece && currentPiece.color === turn) {
+                    selectedSquare = {r,c};
+                    renderBoard();
+                    return;
+                } else {
+                    // Clicked on an illegal destination square
+                    const piece = board[selectedSquare.r][selectedSquare.c];
+                    if (piece.color === turn) {
+                         showMessage("Illegal Move: That piece cannot move there, or it leaves your King in check.");
+                    }
+                }
+                
+                selectedSquare=null; renderBoard();
+                return;
+            }
+            
+            // First click
+            if(currentPiece && currentPiece.color===turn) { 
+                selectedSquare = {r,c}; 
+                renderBoard(); 
+            } else if (currentPiece) {
+                showMessage(`It is ${turn==='w'?'White':'Black'}'s turn. Cannot select an opponent's piece.`);
+            }
+        }
+        
+        function getCoord(o){ return String.fromCharCode(97+o.c) + (8-o.r); }
+        function getFile(o) { return String.fromCharCode(97+o.c); }
+        function getRank(o) { return 8-o.r; }
+        
+        function flipBoard() { 
+            isFlipped = !isFlipped; 
+            renderBoard(); 
+            playSound('flip');
+        } 
+        
+        function toggleAnalysis() { 
+            initSound();
+            isAnalysisMode = !isAnalysisMode; 
+            const btn = document.getElementById('analysis-btn');
+            if(isAnalysisMode) {
+                btn.innerText = "ON"; btn.className="text-xs bg-emerald-900 text-emerald-400 border border-emerald-700 px-3 py-1 rounded uppercase font-bold hover:bg-emerald-800 transition";
+                if (isEngineReady && !isEnginePaused) triggerEngine(); 
+            } else {
+                btn.innerText = "OFF"; btn.className="text-xs bg-slate-700 text-slate-400 border border-slate-600 px-3 py-1 rounded uppercase font-bold hover:bg-slate-600 transition";
+                document.getElementById('board-overlay').innerHTML = '';
+                if (!isEnginePaused) stopEngine(); 
+            }
+        }
+        function resetGame() { initGame(); }
+        function updateSettings() { updateEloDisplay(); }
+        
+        function copyPGN() { 
+            let pgn = "";
+            for(let i=0; i<moveList.length; i+=2) {
+                pgn += `${(i/2)+1}. ${moveList[i]} `;
+                if (moveList[i+1]) pgn += `${moveList[i+1]} `;
+            }
+            if (moveList.length > 0) {
+                // Using document.execCommand('copy') for better compatibility in iframe environments
+                const temp = document.createElement('textarea');
+                temp.value = pgn.trim();
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+                showMessage("PGN Copied! Paste into Lichess 'Import Game'."); 
+            } else {
+                showMessage("No moves to copy yet.");
+            }
+        }
+
+        function checkOpening() {
+            const line = coordMoveList.join(" ");
+            let name = "Starting Position";
+            for (const [moves, opName] of Object.entries(OPENINGS)) {
+                if (line.startsWith(moves) && opName.length > name.length) {
+                     name = opName;
+                }
+            }
+            document.getElementById('opening-name').innerText = name;
+        }
+
+        function drawArrow(moveStr) {
+            if (!moveStr) return;
+            const fC=moveStr.charCodeAt(0)-97, fR=8-parseInt(moveStr[1]), tC=moveStr.charCodeAt(2)-97, tR=8-parseInt(moveStr[3]);
+            const x1 = (isFlipped ? 7-fC : fC)*12.5+6.25, y1 = (isFlipped ? 7-fR : fR)*12.5+6.25;
+            const x2 = (isFlipped ? 7-tC : tC)*12.5+6.25, y2 = (isFlipped ? 7-tR : tR)*12.5+6.25;
+            const svg = document.getElementById('board-overlay');
+            svg.innerHTML = `<defs><marker id="ah" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="rgba(0,100,255,0.6)"/></marker></defs>
+            <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(0,100,255,0.6)" stroke-width="2.5" marker-end="url(#ah)"/>
+            <rect x="${(isFlipped?7-tC:tC)*12.5}" y="${(isFlipped?7-tR:tR)*12.5}" width="12.5" height="12.5" fill="rgba(0,100,255,0.2)"/>`;
+        }
+
+        function renderBoard() {
+            const el = document.getElementById('board'); el.innerHTML = '';
+            const rows = isFlipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+            const cols = isFlipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7]; 
+            
+            let possibleMoves = [];
+            if (selectedSquare) {
+                possibleMoves = getLegalMoves(selectedSquare.r, selectedSquare.c);
+            }
+
+            rows.forEach(r => cols.forEach(c => {
+                const div = document.createElement('div');
+                let cls = `square relative flex items-center justify-center text-4xl sm:text-5xl ${(r+c)%2===0?'bg-[#EBECD0] text-black':'bg-[#779556] text-black'} `;
+                
+                if(lastMove && ((lastMove.from.r===r&&lastMove.from.c===c)||(lastMove.to.r===r&&lastMove.to.c===c))) cls+=' last-move';
+                if(selectedSquare&&selectedSquare.r===r&&selectedSquare.c===c) cls+=' selected';
+                
+                const isMove = possibleMoves.find(m => m.r===r && m.c===c);
+                if(isMove) cls += (board[r][c]||isMove.ep) ? ' capture-move' : ' possible-move';
+
+                div.className = cls; div.onclick = () => handleClick(r, c);
+                const p = board[r][c];
+                if(p) {
+                    const span = document.createElement('span');
+                    span.className = 'chess-piece drop-shadow-md';
+                    span.innerText = PIECES[p.color][p.type];
+                    // Using tailwind text colors for better contrast
+                    span.style.color = p.color==='w'?'#fff':'#000';
+                    if(p.color==='w') span.style.textShadow = '0 1px 2px rgba(0,0,0,0.4)';
+                    div.appendChild(span);
+                }
+                el.appendChild(div);
+            }));
+        }
+
+        function updateUI() {
+            document.getElementById('status-badge').innerText = turn==='w'?"White's Turn":"Black's Turn";
+            document.getElementById('captured-white').innerHTML = capturedPieces.w.join(' ');
+            document.getElementById('captured-black').innerHTML = capturedPieces.b.join(' ');
+            const hist = document.getElementById('move-history');
+            if(moveList.length === 0) {
+                hist.innerHTML = '<div class="text-slate-500 italic text-center mt-4">Game Start</div>';
+            } else {
+                let html = '<div class="grid grid-cols-[30px_1fr_1fr] gap-y-1 p-2">';
+                for(let i=0; i<moveList.length; i+=2) {
+                    html += `<div class="text-slate-500 text-xs pt-1">${(i/2)+1}.</div>`;
+                    html += `<div class="bg-slate-800 px-2 py-0.5 rounded text-slate-300 hover:bg-slate-700 cursor-pointer transition">${moveList[i]}</div>`;
+                    if(moveList[i+1]) html += `<div class="bg-slate-800 px-2 py-0.5 rounded text-slate-300 hover:bg-slate-700 cursor-pointer transition">${moveList[i+1]}</div>`;
+                }
+                html += '</div>';
+                hist.innerHTML = html;
+                hist.scrollTop = hist.scrollHeight;
+            }
+            
+            // Re-trigger engine analysis on UI update if in analysis mode
+            if (isAnalysisMode) triggerEngine();
+        }
+        
+        // --- Main Initialization Wrapper ---
+        window.onload = function () {
+            // initSound() is called on the first user interaction (like handleClick, startEngine)
+            initEngine(); 
+            initGame();
+        }
+
+    </script>
+</body>
+</html>
